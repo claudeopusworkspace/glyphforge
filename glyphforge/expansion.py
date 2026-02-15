@@ -31,6 +31,19 @@ def _from_clipper(path: list[tuple[int, int]]) -> list[Point]:
     return [Point(x / CLIPPER_SCALE, y / CLIPPER_SCALE) for x, y in path]
 
 
+def _collect_polytree(node, result: list[list[Point]]) -> None:
+    """Recursively collect all contours from a pyclipper PolyTree.
+
+    Both outer contours and hole contours are collected as separate
+    polygons. When rendered with SVG fill-rule="evenodd", the holes
+    will correctly subtract from the outers.
+    """
+    if node.Contour:
+        result.append(_from_clipper(node.Contour))
+    for child in node.Childs:
+        _collect_polytree(child, result)
+
+
 def _pyclipper_join(style: JoinStyle) -> int:
     return {
         JoinStyle.ROUND: pyclipper.JT_ROUND,
@@ -261,29 +274,37 @@ class StrokeExpander:
         return [_from_clipper(path) for path in result]
 
     def _union_polygons(self, polygons: list[list[Point]]) -> list[list[Point]]:
-        """Union all polygons using pyclipper boolean operations."""
+        """Union all polygons using pyclipper boolean operations.
+
+        Uses Execute2 (PolyTree) to preserve hole topology — when expanded
+        strokes form enclosed regions (loops, diamonds), the interior holes
+        are returned as separate polygons for evenodd SVG rendering.
+        """
         pc = pyclipper.Pyclipper()
 
-        for i, poly in enumerate(polygons):
+        # Add all polygons as subjects so pyclipper sees them as one
+        # combined shape. Using PFT_EVENODD means the pre-existing winding
+        # from offset (outer=CCW, hole=CW) is respected during union.
+        for poly in polygons:
             cp = _to_clipper(poly)
             if len(cp) < 3:
                 continue
             try:
-                if i == 0:
-                    pc.AddPath(cp, pyclipper.PT_SUBJECT, True)
-                else:
-                    pc.AddPath(cp, pyclipper.PT_CLIP, True)
+                pc.AddPath(cp, pyclipper.PT_SUBJECT, True)
             except pyclipper.ClipperException:
                 continue
 
         try:
-            result = pc.Execute(pyclipper.CT_UNION,
-                                pyclipper.PFT_NONZERO,
-                                pyclipper.PFT_NONZERO)
+            tree = pc.Execute2(pyclipper.CT_UNION,
+                               pyclipper.PFT_EVENODD,
+                               pyclipper.PFT_EVENODD)
         except pyclipper.ClipperException:
             return polygons  # fallback: return un-unioned
 
-        return [_from_clipper(path) for path in result]
+        # Walk the PolyTree and collect all contours (outers + holes)
+        result: list[list[Point]] = []
+        _collect_polytree(tree, result)
+        return result if result else polygons
 
     def _fallback_outline(self, polyline: list[Point]) -> list[Point]:
         """Simple fallback: build parallel curves on each side."""
