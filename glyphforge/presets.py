@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from .style import AlphabetStyle, CapStyle, JoinStyle, SerifStyle
+from .style import AlphabetStyle, CapStyle, JoinStyle, SerifStyle, StrokeWidthMode
 
 PRESETS: dict[str, AlphabetStyle] = {
     "angular": AlphabetStyle(
@@ -10,7 +10,7 @@ PRESETS: dict[str, AlphabetStyle] = {
         loop_probability=0.02,
         inflection_frequency=0.1,
         stroke_width=0.07,
-        stroke_taper=0.1,
+        stroke_width_mode=StrokeWidthMode.STATIC,
         cap_style=CapStyle.FLAT,
         join_style=JoinStyle.MITER,
         serif_style=SerifStyle.SLAB,
@@ -26,9 +26,9 @@ PRESETS: dict[str, AlphabetStyle] = {
         loop_probability=0.25,
         inflection_frequency=0.5,
         stroke_width=0.06,
-        stroke_width_variance=0.03,
-        stroke_taper=0.35,
-        cap_style=CapStyle.TAPERED,
+        stroke_width_mode=StrokeWidthMode.GRADIENT,
+        stroke_taper_ratio=0.25,
+        cap_style=CapStyle.ROUND,
         join_style=JoinStyle.ROUND,
         serif_style=SerifStyle.NONE,
         connectivity=0.8,
@@ -42,8 +42,7 @@ PRESETS: dict[str, AlphabetStyle] = {
         loop_probability=0.15,
         inflection_frequency=0.2,
         stroke_width=0.08,
-        stroke_width_variance=0.0,
-        stroke_taper=0.0,
+        stroke_width_mode=StrokeWidthMode.STATIC,
         cap_style=CapStyle.FLAT,
         join_style=JoinStyle.MITER,
         serif_style=SerifStyle.NONE,
@@ -59,8 +58,7 @@ PRESETS: dict[str, AlphabetStyle] = {
         loop_probability=0.0,
         inflection_frequency=0.05,
         stroke_width=0.12,
-        stroke_width_variance=0.01,
-        stroke_taper=0.0,
+        stroke_width_mode=StrokeWidthMode.STATIC,
         cap_style=CapStyle.FLAT,
         join_style=JoinStyle.MITER,
         serif_style=SerifStyle.SLAB,
@@ -77,9 +75,9 @@ PRESETS: dict[str, AlphabetStyle] = {
         loop_probability=0.2,
         inflection_frequency=0.4,
         stroke_width=0.05,
-        stroke_width_variance=0.03,
-        stroke_taper=0.3,
-        cap_style=CapStyle.TAPERED,
+        stroke_width_mode=StrokeWidthMode.GRADIENT,
+        stroke_taper_ratio=0.2,
+        cap_style=CapStyle.ROUND,
         join_style=JoinStyle.ROUND,
         serif_style=SerifStyle.FLARE,
         serif_size=0.05,
@@ -95,8 +93,7 @@ PRESETS: dict[str, AlphabetStyle] = {
         loop_probability=0.0,
         inflection_frequency=0.0,
         stroke_width=0.07,
-        stroke_width_variance=0.01,
-        stroke_taper=0.05,
+        stroke_width_mode=StrokeWidthMode.STATIC,
         cap_style=CapStyle.FLAT,
         join_style=JoinStyle.MITER,
         serif_style=SerifStyle.WEDGE,
@@ -110,6 +107,23 @@ PRESETS: dict[str, AlphabetStyle] = {
         stroke_count_sigma=0.5,
         control_point_jitter=0.01,
         anchor_jitter=0.01,
+    ),
+    "calligraphic": AlphabetStyle(
+        curvature_bias=0.75,
+        loop_probability=0.15,
+        inflection_frequency=0.35,
+        stroke_width=0.09,
+        stroke_width_mode=StrokeWidthMode.GRADIENT,
+        stroke_taper_ratio=0.2,
+        cap_style=CapStyle.ROUND,
+        join_style=JoinStyle.ROUND,
+        serif_style=SerifStyle.NONE,
+        symmetry_bias=0.1,
+        connectivity=0.6,
+        dot_frequency=0.12,
+        bar_frequency=0.05,
+        flourish_probability=0.08,
+        control_point_jitter=0.05,
     ),
 }
 

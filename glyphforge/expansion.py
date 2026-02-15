@@ -15,7 +15,7 @@ from .glyph import (
     Skeleton,
     Stroke,
 )
-from .style import AlphabetStyle, CapStyle, JoinStyle, SerifStyle
+from .style import AlphabetStyle, CapStyle, JoinStyle, SerifStyle, StrokeWidthMode
 
 
 # pyclipper works with integer coordinates — we scale to this space
@@ -82,7 +82,6 @@ def _pyclipper_end(style: CapStyle) -> int:
     return {
         CapStyle.ROUND: pyclipper.ET_OPENROUND,
         CapStyle.FLAT: pyclipper.ET_OPENBUTT,
-        CapStyle.TAPERED: pyclipper.ET_OPENBUTT,  # taper handled separately
     }[style]
 
 
@@ -129,11 +128,10 @@ class StrokeExpander:
         if len(polyline) < 2:
             return []
 
-        # Apply taper if requested
-        if s.stroke_taper > 0.01 and s.cap_style == CapStyle.TAPERED:
-            return [self._build_tapered_outline(polyline)]
+        if s.stroke_width_mode == StrokeWidthMode.GRADIENT:
+            return [self._build_gradient_outline(polyline)]
 
-        # Simple offset expansion
+        # Static mode: uniform offset expansion
         return self._offset_polyline(polyline)
 
     def _offset_polyline(self, polyline: list[Point]) -> list[list[Point]]:
@@ -155,12 +153,20 @@ class StrokeExpander:
 
         return [_from_clipper(path) for path in result]
 
-    def _build_tapered_outline(self, polyline: list[Point]) -> list[Point]:
-        """Build a tapered stroke outline by varying width along the path."""
+    def _build_gradient_outline(self, polyline: list[Point]) -> list[Point]:
+        """Build a gradient (calligraphic) stroke: thick at start, thin at end.
+
+        Width interpolates linearly from stroke_width at t=0 to
+        stroke_width * stroke_taper_ratio at t=1, consistent across
+        all strokes in the alphabet.
+        """
         s = self._style
         n = len(polyline)
         if n < 2:
             return polyline
+
+        w_start = s.stroke_width
+        w_end = s.stroke_width * s.stroke_taper_ratio
 
         # Compute cumulative arc lengths for parameterisation
         lengths = [0.0]
@@ -175,11 +181,7 @@ class StrokeExpander:
 
         for i in range(n):
             t = lengths[i] / total_len  # [0, 1] along stroke
-
-            # Taper envelope: thick in middle, thin at ends
-            taper = s.stroke_taper
-            envelope = 1.0 - taper * (2 * abs(t - 0.5))
-            width = s.stroke_width * max(0.15, envelope) / 2.0
+            width = (w_start + (w_end - w_start) * t) / 2.0
 
             # Compute local normal
             if i == 0:
@@ -203,6 +205,8 @@ class StrokeExpander:
         s = self._style
 
         if dec.kind == "dot":
+            if s.stroke_width_mode == StrokeWidthMode.GRADIENT:
+                return [self._make_calligraphic_dot(dec)]
             return [self._make_circle(dec.position, dec.size)]
         elif dec.kind == "bar":
             return self._make_bar(dec)
@@ -223,6 +227,46 @@ class StrokeExpander:
                 center.y + radius * math.sin(angle),
             ))
         return points
+
+    def _make_calligraphic_dot(self, dec: Decoration) -> list[Point]:
+        """Calligraphic dot: a short, thick, quickly tapering stroke."""
+        s = self._style
+        p = dec.position
+        length = dec.size * 2.5
+
+        # Short stroke going downward-right (matching typical stroke direction)
+        angle = s.stroke_angle + 0.3  # slight bias for visual consistency
+        dx = math.cos(angle) * length
+        dy = math.sin(angle) * length
+
+        # 5-point polyline for the short stroke
+        steps = 5
+        polyline = [Point(p.x + dx * (i / steps), p.y + dy * (i / steps))
+                    for i in range(steps + 1)]
+
+        # Build tapered outline: thick at start, very thin at end
+        w_start = s.stroke_width * 1.3
+        w_end = s.stroke_width * 0.1
+        n = len(polyline)
+
+        left_side: list[Point] = []
+        right_side: list[Point] = []
+
+        for i in range(n):
+            t = i / (n - 1)
+            width = (w_start + (w_end - w_start) * t) / 2.0
+
+            if i < n - 1:
+                direction = polyline[i + 1] - polyline[i]
+            else:
+                direction = polyline[-1] - polyline[-2]
+
+            norm = Point(-direction.y, direction.x).normalized()
+            left_side.append(polyline[i] + norm * width)
+            right_side.append(polyline[i] - norm * width)
+
+        right_side.reverse()
+        return left_side + right_side
 
     def _make_bar(self, dec: Decoration) -> list[list[Point]]:
         """Generate a crossbar polygon."""

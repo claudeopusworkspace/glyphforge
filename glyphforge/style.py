@@ -9,10 +9,14 @@ from typing import Any
 from .rng import SeededRNG
 
 
+class StrokeWidthMode(Enum):
+    STATIC = "static"      # uniform width throughout every stroke
+    GRADIENT = "gradient"  # calligraphic: thick at start, thin at end
+
+
 class CapStyle(Enum):
     ROUND = "round"
     FLAT = "flat"
-    TAPERED = "tapered"
 
 
 class JoinStyle(Enum):
@@ -44,10 +48,10 @@ class AlphabetStyle:
     glyph_width: float = 0.6        # average width
 
     # -- Stroke -----------------------------------------------------------
-    stroke_width: float = 0.08      # base stroke width
-    stroke_width_variance: float = 0.02  # random variation in width
+    stroke_width: float = 0.08      # stroke width (max width in gradient mode)
+    stroke_width_mode: StrokeWidthMode = StrokeWidthMode.STATIC
+    stroke_taper_ratio: float = 0.3   # gradient mode: end width as fraction of start
     stroke_angle: float = 0.0       # pen angle in radians
-    stroke_taper: float = 0.0       # taper at stroke ends [0,1]
     cap_style: CapStyle = CapStyle.ROUND
     join_style: JoinStyle = JoinStyle.ROUND
 
@@ -90,6 +94,7 @@ def generate_style(rng: SeededRNG) -> AlphabetStyle:
     """Generate a random AlphabetStyle from an RNG."""
     r = rng.fork("style")
 
+    width_mode = r.choice(list(StrokeWidthMode))
     cap = r.choice(list(CapStyle))
     join = r.choice(list(JoinStyle))
     serif = r.choice(list(SerifStyle))
@@ -103,9 +108,9 @@ def generate_style(rng: SeededRNG) -> AlphabetStyle:
 
         # Stroke
         stroke_width=r.uniform(0.04, 0.14),
-        stroke_width_variance=r.uniform(0.0, 0.04),
+        stroke_width_mode=width_mode,
+        stroke_taper_ratio=r.uniform(0.15, 0.45),
         stroke_angle=r.uniform(-0.6, 0.6),
-        stroke_taper=r.uniform(0.0, 0.5),
         cap_style=cap,
         join_style=join,
 
@@ -157,7 +162,9 @@ def apply_overrides(style: AlphabetStyle, overrides: dict[str, Any]) -> Alphabet
         if key not in field_names:
             raise ValueError(f"Unknown style parameter: {key!r}")
         # Auto-convert strings to enums
-        if key == "cap_style" and isinstance(value, str):
+        if key == "stroke_width_mode" and isinstance(value, str):
+            value = StrokeWidthMode(value)
+        elif key == "cap_style" and isinstance(value, str):
             value = CapStyle(value)
         elif key == "join_style" and isinstance(value, str):
             value = JoinStyle(value)
