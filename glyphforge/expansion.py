@@ -70,6 +70,25 @@ def _collect_polytree(node, result: list[list[Point]]) -> None:
         _collect_polytree(child, result)
 
 
+def _ensure_ccw(poly: list[Point]) -> list[Point]:
+    """Ensure a polygon has CCW winding (positive signed area).
+
+    Gradient-mode outlines can have either winding depending on the
+    stroke's spatial direction.  Normalising to CCW before union
+    ensures PFT_NONZERO treats all outer strokes consistently.
+    """
+    n = len(poly)
+    if n < 3:
+        return poly
+    area = 0.0
+    for i in range(n):
+        j = (i + 1) % n
+        area += poly[i].x * poly[j].y - poly[j].x * poly[i].y
+    if area < 0:  # CW → reverse to CCW
+        return list(reversed(poly))
+    return poly
+
+
 def _pyclipper_join(style: JoinStyle) -> int:
     return {
         JoinStyle.ROUND: pyclipper.JT_ROUND,
@@ -129,7 +148,8 @@ class StrokeExpander:
             return []
 
         if s.stroke_width_mode == StrokeWidthMode.GRADIENT:
-            return [self._build_gradient_outline(polyline)]
+            poly = self._build_gradient_outline(polyline)
+            return [_ensure_ccw(poly)]
 
         # Static mode: uniform offset expansion
         return self._offset_polyline(polyline)
@@ -206,7 +226,7 @@ class StrokeExpander:
 
         if dec.kind == "dot":
             if s.stroke_width_mode == StrokeWidthMode.GRADIENT:
-                return [self._make_calligraphic_dot(dec)]
+                return [_ensure_ccw(self._make_calligraphic_dot(dec))]
             return [self._make_circle(dec.position, dec.size)]
         elif dec.kind == "bar":
             return self._make_bar(dec)
