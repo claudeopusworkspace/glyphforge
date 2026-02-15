@@ -9,6 +9,7 @@ import svgwrite
 
 from .geometry import BoundingBox, Point
 from .glyph import Glyph, Outline
+from .style import AlphabetStyle
 
 if TYPE_CHECKING:
     from .alphabet import Alphabet
@@ -25,19 +26,43 @@ INDIVIDUAL_SIZE = 200        # px for individual glyph SVGs
 
 # -- Coordinate mapping ---------------------------------------------------
 
+def _em_box(style: AlphabetStyle) -> BoundingBox:
+    """Compute the shared em-square from style metrics.
+
+    All glyphs are scaled relative to this box so stroke widths
+    are consistent across the alphabet.
+    """
+    w = style.glyph_width
+    h = style.cap_height + style.descender_depth
+    # Add some padding for decorations/jitter that may exceed metrics
+    margin = style.stroke_width * 2
+    return BoundingBox(-margin, -margin, w + margin, h + margin)
+
+
 def _map_outline_to_viewbox(outline: Outline, target_bbox: BoundingBox,
-                              margin: float = 0.05) -> list[list[tuple[float, float]]]:
-    """Map outline polygons into a target viewbox with margin."""
-    src = outline.bounds
+                              margin: float = 0.05,
+                              em_box: BoundingBox | None = None,
+                              ) -> list[list[tuple[float, float]]]:
+    """Map outline polygons into a target viewbox with margin.
+
+    If em_box is provided, it is used as the source coordinate space
+    (shared across all glyphs) so that stroke widths render consistently.
+    Each glyph is centred within its cell at the shared scale.
+    """
+    if em_box is not None:
+        src = em_box
+    else:
+        src = outline.bounds
+
     if src.width < 1e-12 or src.height < 1e-12:
         return []
 
-    # Fit outline into target box preserving aspect ratio
+    # Fit source box into target box preserving aspect ratio
     tw = target_bbox.width * (1 - 2 * margin)
     th = target_bbox.height * (1 - 2 * margin)
     scale = min(tw / src.width, th / src.height)
 
-    # Centre in target box
+    # Centre the source box in the target box
     ox = target_bbox.x_min + target_bbox.width * margin + (tw - src.width * scale) / 2
     oy = target_bbox.y_min + target_bbox.height * margin + (th - src.height * scale) / 2
 
@@ -84,14 +109,20 @@ def _add_glyph_to_drawing(dwg, polygon_lists: list[list[tuple[float, float]]]) -
 
 # -- Individual glyph SVG ------------------------------------------------
 
-def glyph_to_svg(glyph: Glyph, size: int = INDIVIDUAL_SIZE) -> str:
-    """Render a single glyph to an SVG string."""
+def glyph_to_svg(glyph: Glyph, size: int = INDIVIDUAL_SIZE,
+                  style: AlphabetStyle | None = None) -> str:
+    """Render a single glyph to an SVG string.
+
+    If style is provided, uses the shared em-box for consistent scaling.
+    """
     dwg = svgwrite.Drawing(size=(f"{size}px", f"{size}px"),
                             viewBox=f"0 0 {size} {size}")
     dwg.add(dwg.rect(insert=(0, 0), size=(size, size), fill="white"))
 
     target = BoundingBox(0, 0, size, size)
-    paths = _map_outline_to_viewbox(glyph.outline, target, margin=0.1)
+    em = _em_box(style) if style else None
+    paths = _map_outline_to_viewbox(glyph.outline, target, margin=0.1,
+                                     em_box=em)
     _add_glyph_to_drawing(dwg, paths)
 
     return dwg.tostring()
@@ -105,7 +136,7 @@ def export_individual(alphabet: Alphabet, output_dir: str) -> list[str]:
     for glyph in alphabet:
         filename = f"glyph_{glyph.label.lower()}.svg"
         filepath = os.path.join(output_dir, filename)
-        svg_content = glyph_to_svg(glyph)
+        svg_content = glyph_to_svg(glyph, style=alphabet.style)
 
         with open(filepath, "w") as f:
             f.write(svg_content)
@@ -139,6 +170,7 @@ def export_sheet(alphabet: Alphabet, path: str) -> str:
                           font_size="12px", font_family="monospace", fill="#999"))
 
     y_offset = 40
+    em = _em_box(alphabet.style)
 
     for i, glyph in enumerate(alphabet):
         col = i % cols
@@ -153,7 +185,8 @@ def export_sheet(alphabet: Alphabet, path: str) -> str:
         # Glyph
         target = BoundingBox(x0 + pad, y0 + pad,
                               x0 + cell - pad, y0 + cell - pad)
-        paths = _map_outline_to_viewbox(glyph.outline, target, margin=0.05)
+        paths = _map_outline_to_viewbox(glyph.outline, target, margin=0.05,
+                                         em_box=em)
         _add_glyph_to_drawing(dwg, paths)
 
         # Label
@@ -168,4 +201,5 @@ def export_sheet(alphabet: Alphabet, path: str) -> str:
 def glyphs_to_inline_svgs(alphabet: Alphabet,
                             size: int = GLYPH_CELL_SIZE) -> list[str]:
     """Return list of inline SVG strings for each glyph."""
-    return [glyph_to_svg(glyph, size) for glyph in alphabet]
+    return [glyph_to_svg(glyph, size, style=alphabet.style)
+            for glyph in alphabet]

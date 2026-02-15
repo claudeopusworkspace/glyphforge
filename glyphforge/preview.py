@@ -30,7 +30,7 @@ def generate_html(alphabet: Alphabet, glyph_size: int = 120) -> str:
     """Generate a self-contained HTML specimen page."""
     glyph_svgs: list[str] = []
     for glyph in alphabet:
-        svg = glyph_to_svg(glyph, size=glyph_size)
+        svg = glyph_to_svg(glyph, size=glyph_size, style=alphabet.style)
         glyph_svgs.append((glyph.label, svg))
 
     preset_info = f" | Preset: {alphabet.preset_name}" if alphabet.preset_name else ""
