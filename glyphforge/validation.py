@@ -87,10 +87,14 @@ def feature_distance(a: list[float], b: list[float]) -> float:
 
 # -- Validation checks -----------------------------------------------------
 
-MIN_INK_COVERAGE = 0.05
-MAX_INK_COVERAGE = 0.85
-MAX_CONNECTED_COMPONENTS = 8
-MIN_DISTINCTIVENESS = 0.15
+from . import settings
+
+
+def _val(key: str, fallback: float) -> float:
+    try:
+        return settings.get_validation()[key]
+    except (KeyError, FileNotFoundError):
+        return fallback
 
 
 class ValidationResult:
@@ -109,16 +113,19 @@ def validate_glyph(glyph: Glyph, reference_bbox: BoundingBox) -> ValidationResul
     outline = glyph.outline
 
     # Ink coverage
+    min_ink = _val("min_ink_coverage", 0.05)
+    max_ink = _val("max_ink_coverage", 0.85)
     ink = estimate_ink_coverage(outline, reference_bbox)
-    if ink < MIN_INK_COVERAGE:
-        result.fail(f"Ink coverage too low: {ink:.2%} < {MIN_INK_COVERAGE:.0%}")
-    if ink > MAX_INK_COVERAGE:
-        result.fail(f"Ink coverage too high: {ink:.2%} > {MAX_INK_COVERAGE:.0%}")
+    if ink < min_ink:
+        result.fail(f"Ink coverage too low: {ink:.2%} < {min_ink:.0%}")
+    if ink > max_ink:
+        result.fail(f"Ink coverage too high: {ink:.2%} > {max_ink:.0%}")
 
     # Connected components
+    max_components = int(_val("max_connected_components", 8))
     n_components = len(outline.polygons)
-    if n_components > MAX_CONNECTED_COMPONENTS:
-        result.fail(f"Too many components: {n_components} > {MAX_CONNECTED_COMPONENTS}")
+    if n_components > max_components:
+        result.fail(f"Too many components: {n_components} > {max_components}")
 
     # Non-empty
     if not outline.polygons:
@@ -138,7 +145,7 @@ def check_distinctiveness(glyphs: list[Glyph]) -> list[tuple[int, int, float]]:
     for i in range(len(vectors)):
         for j in range(i + 1, len(vectors)):
             d = feature_distance(vectors[i], vectors[j])
-            if d < MIN_DISTINCTIVENESS:
+            if d < _val("min_distinctiveness", 0.15):
                 similar.append((i, j, d))
 
     return similar

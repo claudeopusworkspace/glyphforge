@@ -10,18 +10,19 @@ import svgwrite
 from .geometry import BoundingBox, Point
 from .glyph import Glyph, Outline
 from .style import AlphabetStyle
+from . import settings
 
 if TYPE_CHECKING:
     from .alphabet import Alphabet
 
 
-# -- Configuration --------------------------------------------------------
+# -- Configuration (read from settings.json with fallbacks) ---------------
 
-GLYPH_CELL_SIZE = 100       # px per glyph cell in specimen sheet
-GLYPH_PADDING = 10          # px padding inside cell
-SHEET_COLUMNS = 6           # glyphs per row in specimen sheet
-LABEL_FONT_SIZE = 12
-INDIVIDUAL_SIZE = 200        # px for individual glyph SVGs
+def _export_cfg(key: str, fallback: int) -> int:
+    try:
+        return int(settings.get_export()[key])
+    except (KeyError, FileNotFoundError):
+        return fallback
 
 
 # -- Coordinate mapping ---------------------------------------------------
@@ -109,12 +110,14 @@ def _add_glyph_to_drawing(dwg, polygon_lists: list[list[tuple[float, float]]]) -
 
 # -- Individual glyph SVG ------------------------------------------------
 
-def glyph_to_svg(glyph: Glyph, size: int = INDIVIDUAL_SIZE,
+def glyph_to_svg(glyph: Glyph, size: int | None = None,
                   style: AlphabetStyle | None = None) -> str:
     """Render a single glyph to an SVG string.
 
     If style is provided, uses the shared em-box for consistent scaling.
     """
+    if size is None:
+        size = _export_cfg("individual_size", 200)
     dwg = svgwrite.Drawing(size=(f"{size}px", f"{size}px"),
                             viewBox=f"0 0 {size} {size}")
     dwg.add(dwg.rect(insert=(0, 0), size=(size, size), fill="white"))
@@ -149,11 +152,12 @@ def export_individual(alphabet: Alphabet, output_dir: str) -> list[str]:
 
 def export_sheet(alphabet: Alphabet, path: str) -> str:
     """Export a specimen sheet with all 26 glyphs in a grid."""
-    cols = SHEET_COLUMNS
+    cols = _export_cfg("sheet_columns", 6)
     rows = (len(alphabet) + cols - 1) // cols
-    cell = GLYPH_CELL_SIZE
-    pad = GLYPH_PADDING
-    label_h = LABEL_FONT_SIZE + 4
+    cell = _export_cfg("cell_size", 100)
+    pad = _export_cfg("cell_padding", 10)
+    label_fs = _export_cfg("label_font_size", 12)
+    label_h = label_fs + 4
 
     total_w = cols * cell
     total_h = rows * (cell + label_h) + 40  # 40 for title
@@ -191,7 +195,7 @@ def export_sheet(alphabet: Alphabet, path: str) -> str:
 
         # Label
         dwg.add(dwg.text(glyph.label, insert=(x0 + cell / 2, y0 + cell + label_h - 2),
-                          text_anchor="middle", font_size=f"{LABEL_FONT_SIZE}px",
+                          text_anchor="middle", font_size=f"{label_fs}px",
                           font_family="monospace", fill="#888"))
 
     dwg.save()
@@ -199,7 +203,9 @@ def export_sheet(alphabet: Alphabet, path: str) -> str:
 
 
 def glyphs_to_inline_svgs(alphabet: Alphabet,
-                            size: int = GLYPH_CELL_SIZE) -> list[str]:
+                            size: int | None = None) -> list[str]:
     """Return list of inline SVG strings for each glyph."""
+    if size is None:
+        size = _export_cfg("cell_size", 100)
     return [glyph_to_svg(glyph, size, style=alphabet.style)
             for glyph in alphabet]

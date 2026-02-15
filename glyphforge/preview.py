@@ -10,6 +10,7 @@ from dataclasses import fields
 from typing import TYPE_CHECKING
 
 from .svg_export import glyph_to_svg
+from . import settings
 
 if TYPE_CHECKING:
     from .alphabet import Alphabet
@@ -26,8 +27,13 @@ def _style_table_html(alphabet: Alphabet) -> str:
     return "\n".join(rows)
 
 
-def generate_html(alphabet: Alphabet, glyph_size: int = 120) -> str:
+def generate_html(alphabet: Alphabet, glyph_size: int | None = None) -> str:
     """Generate a self-contained HTML specimen page."""
+    if glyph_size is None:
+        try:
+            glyph_size = int(settings.get_export()["preview_glyph_size"])
+        except (KeyError, FileNotFoundError):
+            glyph_size = 120
     glyph_svgs: list[str] = []
     for glyph in alphabet:
         svg = glyph_to_svg(glyph, size=glyph_size, style=alphabet.style)

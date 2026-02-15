@@ -1,0 +1,67 @@
+{
+    "generation": {
+        "glyph_count": 26,
+        "flatten_tolerance_factor": 0.15
+    },
+
+    "parameter_ranges": {
+        "x_height":              [0.45, 0.65],
+        "cap_height":            [0.65, 0.85],
+        "descender_depth":       [0.15, 0.35],
+        "glyph_width":           [0.45, 0.75],
+
+        "stroke_width":          [0.04, 0.14],
+        "stroke_taper_ratio":    [0.15, 0.45],
+        "stroke_angle":          [-0.6, 0.6],
+
+        "curvature_bias":        [0.0, 1.0],
+        "loop_probability":      [0.0, 0.3],
+        "inflection_frequency":  [0.0, 0.6],
+
+        "stroke_count_mean":     [1.5, 3.5],
+        "stroke_count_sigma":    [0.3, 1.2],
+        "component_reuse":       [0.0, 0.6],
+        "connectivity":          [0.1, 0.9],
+        "symmetry_bias":         [0.0, 0.5],
+
+        "serif_size":            [0.02, 0.08],
+        "dot_frequency":         [0.0, 0.3],
+        "bar_frequency":         [0.0, 0.2],
+        "flourish_probability":  [0.0, 0.15],
+
+        "entry_zone":            [0.1, 0.5],
+        "exit_zone":             [0.5, 0.9],
+        "horizontal_bias":       [-0.5, 0.5],
+
+        "baseline_jitter":       [0.0, 0.04],
+        "scale_jitter":          [0.0, 0.06],
+        "rotation_jitter":       [0.0, 0.04],
+        "aspect_ratio_variance": [0.0, 0.1],
+
+        "control_point_jitter":  [0.02, 0.10],
+        "anchor_jitter":         [0.01, 0.06]
+    },
+
+    "allowed_values": {
+        "stroke_width_mode": ["static", "gradient"],
+        "cap_style":         ["round", "flat"],
+        "join_style":        ["round", "miter", "bevel"],
+        "serif_style":       ["none", "slab", "wedge", "flare"]
+    },
+
+    "validation": {
+        "min_ink_coverage":        0.05,
+        "max_ink_coverage":        0.85,
+        "max_connected_components": 8,
+        "min_distinctiveness":     0.15
+    },
+
+    "export": {
+        "cell_size":        100,
+        "cell_padding":     10,
+        "sheet_columns":    6,
+        "label_font_size":  12,
+        "individual_size":  200,
+        "preview_glyph_size": 120
+    }
+}

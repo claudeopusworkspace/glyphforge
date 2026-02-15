@@ -7,6 +7,7 @@ from enum import Enum
 from typing import Any
 
 from .rng import SeededRNG
+from . import settings
 
 
 class StrokeWidthMode(Enum):
@@ -90,63 +91,74 @@ class AlphabetStyle:
     anchor_jitter: float = 0.03     # anchor point positional noise
 
 
-def generate_style(rng: SeededRNG) -> AlphabetStyle:
-    """Generate a random AlphabetStyle from an RNG."""
-    r = rng.fork("style")
+def _rng_range(r: SeededRNG, param: str) -> float:
+    """Sample a value from the range defined in settings.json."""
+    lo, hi = settings.get_range(param)
+    return r.uniform(lo, hi)
 
-    width_mode = r.choice(list(StrokeWidthMode))
-    cap = r.choice(list(CapStyle))
-    join = r.choice(list(JoinStyle))
-    serif = r.choice(list(SerifStyle))
+
+def _rng_enum(r: SeededRNG, param: str, enum_cls: type) -> Any:
+    """Pick a random allowed enum value from settings.json."""
+    allowed = settings.get_allowed(param)
+    value = r.choice(allowed)
+    return enum_cls(value)
+
+
+def generate_style(rng: SeededRNG) -> AlphabetStyle:
+    """Generate a random AlphabetStyle from an RNG.
+
+    All ranges and allowed values are read from settings.json.
+    """
+    r = rng.fork("style")
 
     return AlphabetStyle(
         # Metrics
-        x_height=r.uniform(0.45, 0.65),
-        cap_height=r.uniform(0.65, 0.85),
-        descender_depth=r.uniform(0.15, 0.35),
-        glyph_width=r.uniform(0.45, 0.75),
+        x_height=_rng_range(r, "x_height"),
+        cap_height=_rng_range(r, "cap_height"),
+        descender_depth=_rng_range(r, "descender_depth"),
+        glyph_width=_rng_range(r, "glyph_width"),
 
         # Stroke
-        stroke_width=r.uniform(0.04, 0.14),
-        stroke_width_mode=width_mode,
-        stroke_taper_ratio=r.uniform(0.15, 0.45),
-        stroke_angle=r.uniform(-0.6, 0.6),
-        cap_style=cap,
-        join_style=join,
+        stroke_width=_rng_range(r, "stroke_width"),
+        stroke_width_mode=_rng_enum(r, "stroke_width_mode", StrokeWidthMode),
+        stroke_taper_ratio=_rng_range(r, "stroke_taper_ratio"),
+        stroke_angle=_rng_range(r, "stroke_angle"),
+        cap_style=_rng_enum(r, "cap_style", CapStyle),
+        join_style=_rng_enum(r, "join_style", JoinStyle),
 
         # Curvature
-        curvature_bias=r.uniform(0.0, 1.0),
-        loop_probability=r.uniform(0.0, 0.3),
-        inflection_frequency=r.uniform(0.0, 0.6),
+        curvature_bias=_rng_range(r, "curvature_bias"),
+        loop_probability=_rng_range(r, "loop_probability"),
+        inflection_frequency=_rng_range(r, "inflection_frequency"),
 
         # Structure
-        stroke_count_mean=r.uniform(1.5, 3.5),
-        stroke_count_sigma=r.uniform(0.3, 1.2),
-        component_reuse=r.uniform(0.0, 0.6),
-        connectivity=r.uniform(0.1, 0.9),
-        symmetry_bias=r.uniform(0.0, 0.5),
+        stroke_count_mean=_rng_range(r, "stroke_count_mean"),
+        stroke_count_sigma=_rng_range(r, "stroke_count_sigma"),
+        component_reuse=_rng_range(r, "component_reuse"),
+        connectivity=_rng_range(r, "connectivity"),
+        symmetry_bias=_rng_range(r, "symmetry_bias"),
 
         # Decorative
-        serif_style=serif,
-        serif_size=r.uniform(0.02, 0.08),
-        dot_frequency=r.uniform(0.0, 0.3),
-        bar_frequency=r.uniform(0.0, 0.2),
-        flourish_probability=r.uniform(0.0, 0.15),
+        serif_style=_rng_enum(r, "serif_style", SerifStyle),
+        serif_size=_rng_range(r, "serif_size"),
+        dot_frequency=_rng_range(r, "dot_frequency"),
+        bar_frequency=_rng_range(r, "bar_frequency"),
+        flourish_probability=_rng_range(r, "flourish_probability"),
 
         # Direction
-        entry_zone=r.uniform(0.1, 0.5),
-        exit_zone=r.uniform(0.5, 0.9),
-        horizontal_bias=r.uniform(-0.5, 0.5),
+        entry_zone=_rng_range(r, "entry_zone"),
+        exit_zone=_rng_range(r, "exit_zone"),
+        horizontal_bias=_rng_range(r, "horizontal_bias"),
 
         # Global modifiers
-        baseline_jitter=r.uniform(0.0, 0.04),
-        scale_jitter=r.uniform(0.0, 0.06),
-        rotation_jitter=r.uniform(0.0, 0.04),
-        aspect_ratio_variance=r.uniform(0.0, 0.1),
+        baseline_jitter=_rng_range(r, "baseline_jitter"),
+        scale_jitter=_rng_range(r, "scale_jitter"),
+        rotation_jitter=_rng_range(r, "rotation_jitter"),
+        aspect_ratio_variance=_rng_range(r, "aspect_ratio_variance"),
 
         # Control points
-        control_point_jitter=r.uniform(0.02, 0.10),
-        anchor_jitter=r.uniform(0.01, 0.06),
+        control_point_jitter=_rng_range(r, "control_point_jitter"),
+        anchor_jitter=_rng_range(r, "anchor_jitter"),
     )
 
 
