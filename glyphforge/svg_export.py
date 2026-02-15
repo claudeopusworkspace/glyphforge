@@ -70,11 +70,16 @@ def _compound_path_d(polygon_lists: list[list[tuple[float, float]]]) -> str:
 
 
 def _add_glyph_to_drawing(dwg, polygon_lists: list[list[tuple[float, float]]]) -> None:
-    """Add a glyph as a single compound path with evenodd fill rule."""
+    """Add a glyph as a single compound path with nonzero fill rule.
+
+    Winding directions are normalised during expansion (outers=CCW,
+    holes=CW), so nonzero fill correctly renders overlapping strokes
+    as solid while still cutting out interior holes.
+    """
     d = _compound_path_d(polygon_lists)
     if d:
         dwg.add(dwg.path(d=d, fill="black", stroke="none",
-                         fill_rule="evenodd"))
+                         fill_rule="nonzero"))
 
 
 # -- Individual glyph SVG ------------------------------------------------

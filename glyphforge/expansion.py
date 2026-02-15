@@ -31,15 +31,41 @@ def _from_clipper(path: list[tuple[int, int]]) -> list[Point]:
     return [Point(x / CLIPPER_SCALE, y / CLIPPER_SCALE) for x, y in path]
 
 
+def _signed_area(clipper_path: list[tuple[int, int]]) -> float:
+    """Signed area of a clipper-coordinate polygon (shoelace formula)."""
+    n = len(clipper_path)
+    if n < 3:
+        return 0.0
+    area = 0.0
+    for i in range(n):
+        j = (i + 1) % n
+        area += clipper_path[i][0] * clipper_path[j][1]
+        area -= clipper_path[j][0] * clipper_path[i][1]
+    return area / 2.0
+
+
 def _collect_polytree(node, result: list[list[Point]]) -> None:
     """Recursively collect all contours from a pyclipper PolyTree.
 
-    Both outer contours and hole contours are collected as separate
-    polygons. When rendered with SVG fill-rule="evenodd", the holes
-    will correctly subtract from the outers.
+    Normalises winding directions for SVG fill-rule="nonzero":
+    - Outer contours → CCW (positive signed area)
+    - Hole contours  → CW  (negative signed area)
+
+    This way overlapping outers reinforce each other (both add to
+    the winding number), while holes subtract.
     """
     if node.Contour:
-        result.append(_from_clipper(node.Contour))
+        contour = node.Contour
+        area = _signed_area(contour)
+        if node.IsHole:
+            # Holes must be CW (negative area)
+            if area > 0:
+                contour = list(reversed(contour))
+        else:
+            # Outers must be CCW (positive area)
+            if area < 0:
+                contour = list(reversed(contour))
+        result.append(_from_clipper(contour))
     for child in node.Childs:
         _collect_polytree(child, result)
 
