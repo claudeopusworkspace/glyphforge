@@ -50,6 +50,33 @@ def _map_outline_to_viewbox(outline: Outline, target_bbox: BoundingBox,
     return result
 
 
+def _compound_path_d(polygon_lists: list[list[tuple[float, float]]]) -> str:
+    """Build an SVG path 'd' attribute from multiple polygons.
+
+    Each polygon becomes a closed subpath. Used with fill-rule="evenodd"
+    so that enclosed regions (holes inside loops/diamonds) are hollow.
+    """
+    parts: list[str] = []
+    for poly in polygon_lists:
+        if len(poly) < 3:
+            continue
+        x0, y0 = poly[0]
+        segments = [f"M{x0:.2f},{y0:.2f}"]
+        for x, y in poly[1:]:
+            segments.append(f"L{x:.2f},{y:.2f}")
+        segments.append("Z")
+        parts.append("".join(segments))
+    return "".join(parts)
+
+
+def _add_glyph_to_drawing(dwg, polygon_lists: list[list[tuple[float, float]]]) -> None:
+    """Add a glyph as a single compound path with evenodd fill rule."""
+    d = _compound_path_d(polygon_lists)
+    if d:
+        dwg.add(dwg.path(d=d, fill="black", stroke="none",
+                         fill_rule="evenodd"))
+
+
 # -- Individual glyph SVG ------------------------------------------------
 
 def glyph_to_svg(glyph: Glyph, size: int = INDIVIDUAL_SIZE) -> str:
@@ -60,11 +87,7 @@ def glyph_to_svg(glyph: Glyph, size: int = INDIVIDUAL_SIZE) -> str:
 
     target = BoundingBox(0, 0, size, size)
     paths = _map_outline_to_viewbox(glyph.outline, target, margin=0.1)
-
-    for poly_points in paths:
-        if len(poly_points) < 3:
-            continue
-        dwg.add(dwg.polygon(poly_points, fill="black", stroke="none"))
+    _add_glyph_to_drawing(dwg, paths)
 
     return dwg.tostring()
 
@@ -126,10 +149,7 @@ def export_sheet(alphabet: Alphabet, path: str) -> str:
         target = BoundingBox(x0 + pad, y0 + pad,
                               x0 + cell - pad, y0 + cell - pad)
         paths = _map_outline_to_viewbox(glyph.outline, target, margin=0.05)
-        for poly_points in paths:
-            if len(poly_points) < 3:
-                continue
-            dwg.add(dwg.polygon(poly_points, fill="black", stroke="none"))
+        _add_glyph_to_drawing(dwg, paths)
 
         # Label
         dwg.add(dwg.text(glyph.label, insert=(x0 + cell / 2, y0 + cell + label_h - 2),

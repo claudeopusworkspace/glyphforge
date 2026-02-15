@@ -91,7 +91,7 @@ def test_svg_sheet_export():
         with open(result) as f:
             content = f.read()
         assert "<svg" in content
-        assert "polygon" in content
+        assert "fill-rule" in content
 
 
 def test_svg_individual_export():
