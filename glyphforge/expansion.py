@@ -302,15 +302,13 @@ class StrokeExpander:
     def _union_polygons(self, polygons: list[list[Point]]) -> list[list[Point]]:
         """Union all polygons using pyclipper boolean operations.
 
-        Uses Execute2 (PolyTree) to preserve hole topology — when expanded
-        strokes form enclosed regions (loops, diamonds), the interior holes
-        are returned as separate polygons for evenodd SVG rendering.
+        Uses PFT_NONZERO so overlapping strokes merge correctly (overlap
+        regions stay filled), and Execute2 (PolyTree) to preserve hole
+        topology — interior holes from loops/diamonds are returned as
+        separate polygons with CW winding for nonzero SVG rendering.
         """
         pc = pyclipper.Pyclipper()
 
-        # Add all polygons as subjects so pyclipper sees them as one
-        # combined shape. Using PFT_EVENODD means the pre-existing winding
-        # from offset (outer=CCW, hole=CW) is respected during union.
         for poly in polygons:
             cp = _to_clipper(poly)
             if len(cp) < 3:
@@ -322,8 +320,8 @@ class StrokeExpander:
 
         try:
             tree = pc.Execute2(pyclipper.CT_UNION,
-                               pyclipper.PFT_EVENODD,
-                               pyclipper.PFT_EVENODD)
+                               pyclipper.PFT_NONZERO,
+                               pyclipper.PFT_NONZERO)
         except pyclipper.ClipperException:
             return polygons  # fallback: return un-unioned
 
