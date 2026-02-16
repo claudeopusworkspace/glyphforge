@@ -6,9 +6,8 @@ import json
 import os
 from typing import Any
 
-# Default settings path: settings.json in the project root
-_DEFAULT_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)),
-                              "settings.json")
+# Default settings path: settings.json inside the package
+_DEFAULT_PATH = os.path.join(os.path.dirname(__file__), "settings.json")
 
 _cache: dict[str, Any] | None = None
 _cache_path: str | None = None

@@ -1,0 +1,23 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "glyphforge"
+version = "0.1.0"
+description = "Procedural alphabet generator — unique writing systems from a seed."
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+    "pyclipper",
+    "svgwrite",
+]
+
+[project.optional-dependencies]
+dev = ["pytest"]
+
+[tool.setuptools.packages.find]
+include = ["glyphforge*"]
+
+[tool.setuptools.package-data]
+glyphforge = ["settings.json"]
